@@ -3,7 +3,7 @@ package hive
 import (
 	"context"
 
-	"github.com/bippio/go-impala/services/cli_service"
+	"github.com/abdelaziz-ouhammou/go-impala/services/cli_service"
 )
 
 // Session represents hive session

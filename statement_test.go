@@ -7,9 +7,9 @@ import (
 
 func TestStatement(t *testing.T) {
 	tests := []struct {
-		stmt string
-		args []driver.NamedValue
-		target  string
+		stmt   string
+		args   []driver.NamedValue
+		target string
 	}{
 		{
 			stmt: "@p1 p1",
