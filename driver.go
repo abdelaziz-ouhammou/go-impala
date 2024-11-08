@@ -7,10 +7,10 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -80,7 +80,17 @@ func parseURI(uri string) (*Options, error) {
 	if auth == "ldap" {
 		opts.UseLDAP = true
 	}
-
+	if auth == "kerberos" {
+		opts.UseKerberos = true
+	}
+	service := query.Get("service")
+	if service != "" {
+		opts.Service = service
+	}
+	krbhost := query.Get("krb_host")
+	if krbhost != "" {
+		opts.KrbHost = krbhost
+	}
 	tls, ok := query["tls"]
 	if ok {
 		v, err := strconv.ParseBool(tls[0])
@@ -89,7 +99,10 @@ func parseURI(uri string) (*Options, error) {
 		}
 		opts.UseTLS = v
 	}
-
+	insecure := query.Get("secure")
+	if insecure == "false" {
+		opts.SkipServerCertCheck = true
+	}
 	caCert, ok := query["ca-cert"]
 	if ok {
 		opts.CACertPath = caCert[0]
@@ -160,36 +173,33 @@ func (c *connector) Driver() driver.Driver {
 }
 
 func connect(opts *Options) (*Conn, error) {
-
 	addr := net.JoinHostPort(opts.Host, opts.Port)
-
 	var socket thrift.TTransport
 	var err error
-	if opts.UseTLS {
-
-		if opts.CACertPath == "" {
-			return nil, errors.New("Please provide CA certificate path")
+	if opts.UseTLS || opts.UseKerberos {
+		var caCertPool *x509.CertPool
+		if !opts.SkipServerCertCheck {
+			if opts.CACertPath == "" {
+				return nil, errors.New("Please provide CA certificate path")
+			}
+			caCert, err := os.ReadFile(opts.CACertPath)
+			if err != nil {
+				return nil, err
+			}
+			caCertPool = x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
 		}
-
-		caCert, err := ioutil.ReadFile(opts.CACertPath)
-		if err != nil {
-			return nil, err
+		tlsConfig := tls.Config{
+			// RootCAs:            caCertPool,
+			CipherSuites:       []uint16{tls.TLS_RSA_WITH_AES_256_GCM_SHA384},
+			InsecureSkipVerify: opts.SkipServerCertCheck,
 		}
-
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
-
-		socket, err = thrift.NewTSSLSocket(addr, &tls.Config{
-			RootCAs: caCertPool,
+		socket = thrift.NewTSSLSocketConf(addr, &thrift.TConfiguration{
+			TLSConfig: &tlsConfig,
 		})
 	} else {
-		socket, err = thrift.NewTSocket(addr)
+		socket = thrift.NewTSocketConf(addr, &thrift.TConfiguration{})
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
 	var transport thrift.TTransport
 	if opts.UseLDAP {
 
@@ -206,16 +216,27 @@ func connect(opts *Options) (*Conn, error) {
 			Username: opts.Username,
 			Password: opts.Password,
 		})
-
+		if err != nil {
+			return nil, err
+		}
+	} else if opts.UseKerberos {
+		transport, err = sasl.NewTSaslTransport(socket, &sasl.Options{
+			Service:     opts.Service,
+			Host:        opts.KrbHost,
+			UseKerberos: true,
+		})
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		transport = thrift.NewTBufferedTransport(socket, opts.BufferSize)
 	}
-
-	protocol := thrift.NewTBinaryProtocol(transport, false, true)
-
+	strictRead := false
+	strictWrite := true
+	protocol := thrift.NewTBinaryProtocolConf(transport, &thrift.TConfiguration{
+		TBinaryStrictRead:  &strictRead,
+		TBinaryStrictWrite: &strictWrite,
+	})
 	if err := transport.Open(); err != nil {
 		return nil, err
 	}

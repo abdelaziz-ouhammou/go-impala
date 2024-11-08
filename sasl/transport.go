@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 
 	"github.com/apache/thrift/lib/go/thrift"
 )
@@ -54,8 +53,7 @@ func (t *TSaslTransport) Open() error {
 			return err
 		}
 	}
-
-	mech, initial, _, err := t.sasl.Start([]string{MechPlain})
+	mech, initial, _, err := t.sasl.Start([]string{MechPlain, MechKerberos})
 	if err != nil {
 		return err
 	}
@@ -68,7 +66,7 @@ func (t *TSaslTransport) Open() error {
 	}
 
 	for {
-		status, challenge, err := t.recieve()
+		status, challenge, err := t.negotiationReceive()
 		if err != nil {
 			return fmt.Errorf("sasl: negotiation failed. %v", err)
 		}
@@ -81,11 +79,14 @@ func (t *TSaslTransport) Open() error {
 			break
 		}
 
-		payload, _, err := t.sasl.Step(challenge)
+		payload, done, err := t.sasl.Step(challenge)
 		if err != nil {
 			return fmt.Errorf("sasl: negotiation failed. %v", err)
 		}
-		if err := t.negotiationSend(StatusOK, payload); err != nil {
+		if done {
+			status = StatusComplete
+		}
+		if err := t.negotiationSend(status, payload); err != nil {
 			return fmt.Errorf("sasl: negotiation failed. %v", err)
 		}
 
@@ -128,8 +129,7 @@ func (t *TSaslTransport) Write(buf []byte) (int, error) {
 }
 
 func (t *TSaslTransport) Flush(ctx context.Context) error {
-
-	in, err := ioutil.ReadAll(t.wbuf)
+	in, err := io.ReadAll(t.wbuf)
 	if err != nil {
 		return err
 	}
@@ -139,8 +139,10 @@ func (t *TSaslTransport) Flush(ctx context.Context) error {
 	payload = append(payload, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
 	payload = append(payload, in...)
 
-	t.trans.Write(payload)
-
+	_, err = t.trans.Write(payload)
+	if err != nil {
+		return err
+	}
 	t.wbuf.Reset()
 	return t.trans.Flush(ctx)
 }
@@ -155,28 +157,39 @@ func (t *TSaslTransport) Close() error {
 }
 
 func (t *TSaslTransport) negotiationSend(status Status, body []byte) error {
-	var payload []byte
-	payload = append(payload, byte(status))
-	v := len(body)
-	payload = append(payload, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+	var payload = make([]byte, 5)
+	payload[0] = byte(status)
+	length := len(body)
+	binary.BigEndian.PutUint32(payload[1:], uint32(length))
 	payload = append(payload, body...)
 	_, err := t.trans.Write(payload)
 	if err != nil {
 		return err
 	}
-
-	if err := t.trans.Flush(context.Background()); err != nil {
-		return err
-	}
-
+	// if err := t.trans.Flush(context.Background()); err != nil {
+	// 	return err
+	// }
+	fmt.Println("negotiationSend", payload)
 	return nil
 }
 
-func (t *TSaslTransport) recieve() (Status, []byte, error) {
+func (t *TSaslTransport) negotiationReceive() (Status, []byte, error) {
 	header := make([]byte, 5)
 	_, err := t.trans.Read(header)
 	if err != nil {
 		return 0, nil, err
 	}
-	return Status(header[0]), header[1:], nil
+	length := binary.BigEndian.Uint32(header[1:])
+
+	fmt.Println("negotiationReceive", "status:", header[0], "length", length)
+	var challenge []byte
+	if length > 0 {
+		challenge = make([]byte, length)
+		_, err = t.trans.Read(challenge)
+		if err != nil {
+			return 0, nil, err
+		}
+	}
+	fmt.Println("negotiationReceive", header, challenge)
+	return Status(header[0]), challenge, nil
 }

@@ -13,15 +13,17 @@ type Mech string
 
 // SASL mechanism tokens
 const (
-	MechPlain = "PLAIN"
+	MechPlain    = "PLAIN"
+	MechKerberos = "GSSAPI"
 )
 
 // Options contains data related to SASL negotiation
 type Options struct {
-	Service  string
-	Host     string
-	Username string
-	Password string
+	Service     string
+	Host        string
+	UseKerberos bool
+	Username    string
+	Password    string
 }
 
 // Client is SASL client
