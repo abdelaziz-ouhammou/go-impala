@@ -112,7 +112,6 @@ func (t *TSaslTransport) readFrame(buf []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
 	l := binary.BigEndian.Uint32(header)
 
 	body := make([]byte, l)
@@ -166,10 +165,7 @@ func (t *TSaslTransport) negotiationSend(status Status, body []byte) error {
 	if err != nil {
 		return err
 	}
-	// if err := t.trans.Flush(context.Background()); err != nil {
-	// 	return err
-	// }
-	fmt.Println("negotiationSend", payload)
+	// fmt.Println("negotiationSend", payload)
 	return nil
 }
 
@@ -181,7 +177,7 @@ func (t *TSaslTransport) negotiationReceive() (Status, []byte, error) {
 	}
 	length := binary.BigEndian.Uint32(header[1:])
 
-	fmt.Println("negotiationReceive", "status:", header[0], "length", length)
+	// fmt.Println("negotiationReceive", "status:", header[0], "length", length)
 	var challenge []byte
 	if length > 0 {
 		challenge = make([]byte, length)
@@ -190,6 +186,6 @@ func (t *TSaslTransport) negotiationReceive() (Status, []byte, error) {
 			return 0, nil, err
 		}
 	}
-	fmt.Println("negotiationReceive", header, challenge)
+	// fmt.Println("negotiationReceive", header, challenge)
 	return Status(header[0]), challenge, nil
 }
