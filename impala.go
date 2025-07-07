@@ -17,19 +17,19 @@ type Options struct {
 	Username string
 	Password string
 
-	UseLDAP             bool
-	UseKerberos         bool
-	Service             string
-	KrbHost             string
-	UseTLS              bool
-	SkipServerCertCheck bool
-	CACertPath          string
-	BufferSize          int
-	BatchSize           int
-	MemoryLimit         string
-	QueryTimeout        int
-
-	LogOut io.Writer
+	UseLDAP                bool
+	UseKerberos            bool
+	Service                string
+	KrbHost                string
+	UseTLS                 bool
+	SkipServerCertCheck    bool
+	CACertPath             string
+	BufferSize             int
+	BatchSize              int
+	MemoryLimit            string
+	QueryTimeout           int
+	ParquetArrayResolution string
+	LogOut                 io.Writer
 }
 
 var (

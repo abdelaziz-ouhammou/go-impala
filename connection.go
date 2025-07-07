@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/abdelaziz-ouhammou/go-impala/hive"
+	"github.com/abdelaziz-ouhammou/go-impala/v3/hive"
 	"github.com/apache/thrift/lib/go/thrift"
 )
 

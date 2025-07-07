@@ -1,4 +1,4 @@
-module github.com/abdelaziz-ouhammou/go-impala
+module github.com/abdelaziz-ouhammou/go-impala/v3
 
 go 1.23.2
 

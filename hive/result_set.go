@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/abdelaziz-ouhammou/go-impala/services/cli_service"
+	"github.com/abdelaziz-ouhammou/go-impala/v3/services/cli_service"
 )
 
 // ResultSet ...

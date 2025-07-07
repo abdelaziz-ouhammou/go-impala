@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/abdelaziz-ouhammou/go-impala/hive"
-	"github.com/abdelaziz-ouhammou/go-impala/sasl"
+	"github.com/abdelaziz-ouhammou/go-impala/v3/hive"
+	"github.com/abdelaziz-ouhammou/go-impala/v3/sasl"
 	"github.com/apache/thrift/lib/go/thrift"
 )
 
@@ -139,7 +139,11 @@ func parseURI(uri string) (*Options, error) {
 		}
 		opts.QueryTimeout = qTimeout
 	}
-
+	opts.ParquetArrayResolution = "THREE_LEVEL"
+	parquetArrayResolution, ok := query["parquet-array-resolution"]
+	if ok {
+		opts.ParquetArrayResolution = parquetArrayResolution[0]
+	}
 	return &opts, nil
 }
 
@@ -245,9 +249,10 @@ func connect(opts *Options) (*Conn, error) {
 
 	tclient := thrift.NewTStandardClient(protocol, protocol)
 	client := hive.NewClient(tclient, logger, &hive.Options{
-		MaxRows:      int64(opts.BatchSize),
-		MemLimit:     opts.MemoryLimit,
-		QueryTimeout: opts.QueryTimeout,
+		MaxRows:                int64(opts.BatchSize),
+		MemLimit:               opts.MemoryLimit,
+		QueryTimeout:           opts.QueryTimeout,
+		ParquetArrayResolution: opts.ParquetArrayResolution,
 	})
 
 	return &Conn{client: client, t: transport, log: logger}, nil
