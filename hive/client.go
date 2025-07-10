@@ -2,7 +2,6 @@ package hive
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strconv"
 
@@ -41,8 +40,6 @@ func (c *Client) OpenSession(ctx context.Context) (*Session, error) {
 		"QUERY_TIMEOUT_S":          strconv.Itoa(c.opts.QueryTimeout),
 		"PARQUET_ARRAY_RESOLUTION": c.opts.ParquetArrayResolution,
 	}
-	fmt.Println(cfg)
-
 	req := cli_service.TOpenSessionReq{
 		ClientProtocol: cli_service.TProtocolVersion_HIVE_CLI_SERVICE_PROTOCOL_V7,
 		Configuration:  cfg,
